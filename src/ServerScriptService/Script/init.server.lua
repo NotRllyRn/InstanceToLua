@@ -22,26 +22,38 @@ local PropertyAPI = (function()
 			return HttpService:JSONDecode(resp.Body)
 		end)()
 		
-		local exceptions = {
-			Attachment = function()
-				local BasePart = Instance.new("Part")
-				local Attachment = Instance.new("Attachment", BasePart)
-				error("Attachment is not supported", 2)
-				return Attachment
-			end,
-			Instance = function()
-				return Instance
-			end,
+		local skipTags = {
+			"NotScriptable",
+			"Deprecated",
+			"ReadOnly",
+			"Hidden",
+			"NotCreatable",
+		}
+		local skipInstances = {
+			"DebuggerWatch",
+			"ChannelSelectorSoundEffect",
 		}
 
 		local Toolset = {
 			SortedData = {},
 			GetClassDataFromAPI = function(self, class)
+				if table.find(skipInstances, class.Name) then
+					return nil
+				end
 				local success, instance = pcall(function()
-					return exceptions[class.Name] and exceptions[class.Name]() or Instance.new(class.Name)
+					local instance = class.Name == "Instance" and Instance or class.Name == "DebuggerWatch" and error("wow", 2) or Instance.new(class.Name)
+					return instance
 				end)
 				if not success then return end
+				if class.Tags then
+					for _, tag in ipairs(skipTags) do
+						if table.find(class.Tags, tag) then
+							return
+						end
+					end
+				end
 				local data = {
+					Name = class.Name,
 					ExampleInstance = instance,
 					Properties = {},
 					Methods = {},
@@ -51,18 +63,26 @@ local PropertyAPI = (function()
 				for _, property in ipairs(class.Members) do
 					local type = property.MemberType
 					if type == "Property" then
-						pcall(function()
-							print(class.Name, property.Name, data.ExampleInstance[property.Name])
-							data.Properties[property.Name] = {
-								Name = property.Name,
-								DefaultValue = data.ExampleInstance[property.Name]
-							}
-						end)
-						
-					elseif type == "Function" then
-						--data.Methods[property.Name] = property
-					elseif type == "Event" then
-						--data.Events[property.Name] = property
+						if property.Security and property.Security.Read ~= "None" then
+							continue
+						end
+						if property.Tags then
+							local stop
+							for _, tag in ipairs(skipTags) do
+								if table.find(property.Tags, tag) then
+									stop = true
+									break
+								end
+							end
+							if stop then
+								continue
+							end
+						end
+
+						data.Properties[property.Name] = {
+							Name = property.Name,
+							DefaultValue = data.ExampleInstance[property.Name]
+						}
 					end
 				end
 				return data
@@ -91,19 +111,23 @@ local PropertyAPI = (function()
 						if self.SortedData[SuperClass] then
 							classData.Superclass = self.SortedData[SuperClass]
 						end
+
+						if ClassName == "FormFactorPart" then
+							print(Class)
+						end
+						if self.SortedData[SuperClass] then
+							for property, data in pairs(self.SortedData[SuperClass].Properties) do
+								classData.Properties[property] = data
+							end
+						end
 			
 						self.SortedData[ClassName] = classData
 					end
 				end
 			end,
 		}
-		
-		print(APIData.Classes[30].Name)
 
 		for i, class in ipairs(APIData.Classes) do
-			task.wait(0.1)
-			print(class.Name)
-			print(i, class.Name, class)
 			Toolset:ConstructClass(class.Name)
 		end
 		
@@ -125,6 +149,7 @@ local PropertyAPI = (function()
 			end,
 			GetObjectProperties = function(self, instance)
 				local class = self:GetClassData(instance)
+				print(class)
 				if class then
 					local values = {}
 					for property, _ in pairs(class.Properties) do
@@ -137,19 +162,19 @@ local PropertyAPI = (function()
 				class = self:GetClassData(class)
 				if class then
 					for property, value in pairs(properties) do
-						if self:CheckDefaultProperty(class, property, value) then
+						if self:CheckDefaultProperty(class.Name, property, value) then
 							properties[property] = nil
 						end
 					end
 					return properties
 				end
 			end,
-			CheckTableDefault = function(self, class, properties)
-				class = self:GetClassData(class)
+			CheckTableDefault = function(self, instance, properties)
+				local class = self:GetClassData(instance)
 				if class then
 					local default = true
 					for property, value in pairs(properties) do
-						if not self:CheckDefaultProperty(class, property, value) then
+						if not self:CheckDefaultProperty(instance, property, value) then
 							default = false
 							break
 						end
@@ -167,7 +192,6 @@ local PropertyAPI = (function()
 	end)()
 	local DataTypeAPI = (function()
 		return {
-			DataTypes = {
 				["ConstructData"] = function(self, data)
 					local dataType = data and typeof(data)
 					if dataType then
@@ -335,7 +359,6 @@ local PropertyAPI = (function()
 					return "Vector3int16.new(" .. table.concat(tupleData, ", ") .. ")"
 				end,
 			}
-		}
 	end)()
 	
 	return {
@@ -353,8 +376,10 @@ local PropertyAPI = (function()
 			if not child then
 				base =  'local ' .. InstanceName .. ' = ' .. base
 			end
-			if not InstanceAPI:CheckTableDefault(instance) then
-				local properties = InstanceAPI:RemoveDefaultProperties(instance, InstanceAPI:GetObjectProperties(instance))
+			local InstanceProperties = InstanceAPI:GetObjectProperties(instance)
+			print(InstanceProperties)
+			if not InstanceAPI:CheckTableDefault(instance, InstanceProperties) then
+				local properties = InstanceAPI:RemoveDefaultProperties(instance, InstanceProperties)
 				local StringifiedProperties = {}
 				for property, value in pairs(properties) do
 					table.insert(StringifiedProperties, property .. ' = ' .. DataTypeAPI:ConstructData(value))
