@@ -151,8 +151,8 @@ return {
     RemoveDefaultProperties = function(self, class, properties)
         class = self:GetClassData(class)
         if class then
-            for property, value in pairs(properties) do
-                if self:CheckDefaultProperty(class.Name, property, value) then
+            for property, value in pairs(class.Properties) do
+                if self:CheckDefaultProperty(class.Name, property, properties[property]) then
                     properties[property] = nil
                 end
             end
@@ -163,8 +163,8 @@ return {
         local class = self:GetClassData(instance)
         if class then
             local default = true
-            for property, value in pairs(properties) do
-                if not self:CheckDefaultProperty(instance, property, value) then
+            for property, value in pairs(class.Properties) do
+                if not self:CheckDefaultProperty(instance, property, properties[property]) then
                     default = false
                     break
                 end
