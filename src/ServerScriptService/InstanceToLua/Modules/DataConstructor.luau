@@ -27,7 +27,7 @@ local t = {
 		else
 			local check = ""
 			while data:match(`[{check}[`) do
-				check = check .. string.char(math.random(65,122))
+				check = `{ check }{ string.char(math.random(65, 122)) }`
 			end
 			return `[{check}[{data}]{check}]`
 		end
@@ -76,7 +76,7 @@ local t = {
 	end,
 	["ColorSequence"] = function(self, data)
 		local keyPointData = self:ConstructData(data.Keypoints)
-		return "ColorSequence.new({ " .. table.concat(keyPointData, ", ") .. " })"
+		return `ColorSequence.new(\{ { table.concat(keyPointData, ", ") } })`
 	end,
 	["ColorSequenceKeypoint"] = function(self, data)
 		local tupleData = self:ConstructData{ data.Time, data.Value }
@@ -122,8 +122,8 @@ local t = {
 		return `NumberRange.new({ table.concat(tupleData, ", ") })`
 	end,
 	["NumberSequence"] = function(self, data)
-		local keyDataPoints = self:ConstructData(data.Keypoints)
-		return "NumberSequence.new({ " .. table.concat(keyDataPoints, ", ") .. " })"
+		local keyPointData = self:ConstructData(data.Keypoints)
+		return `ColorSequence.new(\{ { table.concat(keyPointData, ", ") } })`
 	end,
 	["NumberSequenceKeypoint"] = function(self, data)
 		local tupleData = self:ConstructData{ data.Time, data.Value, data.Envelope }

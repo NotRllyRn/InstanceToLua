@@ -13,14 +13,12 @@ local _CI = function(class, properties, children)
 	return instance
 end\n\n]]
 
-
 -- // get some values
 local pluginFolder = script.Parent
-local modules = pluginFolder.Modules
+local Shared = require(pluginFolder.Shared)
 
-local userValues = require(pluginFolder.Shared)
-local dataConstructor = require(modules.DataConstructor)
-local dumpParser = require(modules.DumpParser)
+local dataConstructor = Shared.DataConstructor
+local dumpParser = Shared.DumpParser
 local dump = dumpParser.fetchFromServer()
 
 local ignoreProperties = {

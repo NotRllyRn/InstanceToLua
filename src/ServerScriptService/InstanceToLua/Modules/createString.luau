@@ -38,13 +38,14 @@ function cs.createObject(object, created, child)
     return creation.base(object, created, child) .. creation.properties(object, created, child) .. creation.children(object, created, child)
 end
 
+-- // default methods
 local default = {}
 cs.default = default
 
 function default.base(object, created, child)
     local objName = cs.createName(object, created)
 
-    local base = `{ userValues.creationFunction }("{ object.ClassName }", ` .. "{"
+    local base = `{ userValues.creationFunction }("{ object.ClassName }", \{`
 	if child == 1 then
         base = `local {objName} = {base}`
 	elseif userValues.defineChildrenInTable then
@@ -52,6 +53,41 @@ function default.base(object, created, child)
 	end
 
     return `{ cs.indent(child) }{ base }`
+end
+
+function default.properties(object)
+    local properties = dump:GetChangedProperties(object)
+	if isAScript and object.Source ~= "" then
+		properties.Source = { MemberType = "Property" }
+	end
+	
+	for name, check in ignoreProperties do
+		if check == true then
+			properties[name] = nil
+		elseif type(check) == "table" then
+			local pass = true
+			for _, prop in check do
+				if not properties[prop] then
+					pass = false
+					break
+				end
+			end
+			
+			if pass then
+				properties[name] = nil
+			end
+		end
+	end
+	
+	local base_check = false
+	local stringProperties = {}
+	
+	for name, data in properties do
+		base_check = true
+		if data.MemberType == "Property" then
+			table.insert(stringProperties, name .. ' = ' .. dataConstructor(object[name]))
+		end
+	end
 end
 
 cs.load = function(objects)
