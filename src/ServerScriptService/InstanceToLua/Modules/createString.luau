@@ -1,4 +1,5 @@
-local userValues = require(script.Parent.Parent.Shared)
+local Shared = require(script.Parent.Parent.Shared)
+local userValues = Shared.userValues
 
 local cs = {}
 cs.Ignore = { "Script", "LocalScript", "ModuleScript" }
